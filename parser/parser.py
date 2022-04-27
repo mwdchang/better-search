@@ -15,7 +15,12 @@ def parse_text(raw_text):
     for token in out:
         if token.is_stop or token.is_punct:
             continue
-        keywords.append(token.text)
+
+        candidate = token.text.strip()
+        if candidate == "" or candidate.startswith("\\") == True or len(candidate) == 1:
+            continue
+        # keywords.append(token.text)
+        keywords.append(candidate)
 
     word_freq = Counter(keywords)
     max_freq = word_freq.most_common(1)[0][1]
@@ -24,7 +29,7 @@ def parse_text(raw_text):
     common_words = word_freq.most_common(5)
     num_sentences = len(list(out.sents))
 
-    # Summarize
+    # Summarize raw text
     # See: https://medium.com/analytics-vidhya/text-summarization-using-spacy-ca4867c6b744
     sent_strength = {}
     for sent in out.sents:
@@ -44,7 +49,16 @@ def parse_text(raw_text):
             ner[ent.label_].append(ent.text)
         else:
             ner[ent.label_] = [ent.text]
-        # print(ent.text, ent.start_char, ent.end_char, ent.label_)
+
+    # Remove noisy
+    if "CARDINAL" in ner:
+        del ner["CARDINAL"]
+
+    if "MONEY" in ner:
+        del ner["MONEY"]
+
+    if "PERCENT" in ner:
+        del ner["PERCENT"]
 
     # Vector representation
     # spacCy's doc vector is just the average of word vectors, so it isn't great because of order-invariance
@@ -53,10 +67,16 @@ def parse_text(raw_text):
 
     # Return as object/json
     result = {
-        # "text": raw_text,
-        "summarized_text": summarized_text,
+        "text": raw_text,
+        # "vector":out.vector,
+        "summarized_text": [s.text for s in summarized_text],
         "common_words": common_words,
-        "ner": ner,
-        # "vector":out.vector
+        "num_sentences": num_sentences,
+        "ner": ner
     }
     return result
+
+
+def parse_text_2_json(raw_text):
+    r = parse_text(raw_text)
+    return json.dumps(r)
