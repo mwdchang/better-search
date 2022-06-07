@@ -1,0 +1,39 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<style> 
+html, body {
+  font-family: Tahoma;
+  font-size: 10px;
+}
+</style>
+</head>
+<body>
+</body>
+<script type="module">
+import { betterSearch3 } from './search.js';
+
+const corpus = []
+const resp = await fetch('data.jsonl');
+const corpusText = await resp.text();
+
+corpusText.split(/\n/).forEach(text => {
+  if (!text || text === '') return;
+  corpus.push(JSON.parse(text));
+});
+
+const searchStr = 'murder';
+
+const entries = betterSearch3(searchStr, corpus)
+// entries.map((entry, idx) => {
+  // console.log(idx, entry.ner);
+  // console.log(idx, entry.summarized_text.join(' '))
+  // console.log(idx, entry.common_words);
+// });
+
+document.write(searchStr);
+document.write('<br>');
+// document.write(entries.map(d => `${d.id} ${d.text} <br>## ${d.common_words.map(x => x[0]).join(', ')} ##<br><br>`));
+
+</script>
+</html>

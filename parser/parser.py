@@ -6,7 +6,13 @@ nlp = spacy.load("en_core_web_sm")
 from collections import Counter
 from heapq import nlargest
 
-def parse_text(raw_text):
+
+# Custom entity
+# https://towardsdatascience.com/custom-named-entity-recognition-using-spacy-7140ebbb3718#:~:text=SpaCy%20NER%20already%20supports%20the,%2C%20agencies%2C%20institutions%2C%20etc.
+
+MIN_KEYWORD_LENGTH = 3
+
+def parse_text(raw_text, doc_id=None):
     stopwords = list(STOP_WORDS)
     out = nlp(raw_text)
 
@@ -17,9 +23,8 @@ def parse_text(raw_text):
             continue
 
         candidate = token.text.strip()
-        if candidate == "" or candidate.startswith("\\") == True or len(candidate) == 1:
+        if candidate == "" or candidate.startswith("\\") == True or len(candidate) < MIN_KEYWORD_LENGTH:
             continue
-        # keywords.append(token.text)
         keywords.append(candidate)
 
     word_freq = Counter(keywords)
@@ -28,6 +33,21 @@ def parse_text(raw_text):
         word_freq[word] = word_freq[word] / max_freq
     common_words = word_freq.most_common(5)
     num_sentences = len(list(out.sents))
+
+    sents = []
+    for sent in out.sents:
+        ner = {}
+        for ent in sent.ents:
+            if ent.label_ in ner:
+                ner[ent.label_].append(ent.text)
+            else:
+                ner[ent.label_] = [ent.text]
+
+        sents.append({
+            "text": sent.text,
+            "vector": sent.vector.tolist(),
+            "ner": ner
+        })
 
     # Summarize raw text
     # See: https://medium.com/analytics-vidhya/text-summarization-using-spacy-ca4867c6b744
@@ -67,16 +87,18 @@ def parse_text(raw_text):
 
     # Return as object/json
     result = {
+        "id": doc_id,
         "text": raw_text,
+        "sents": sents,
         # "vector":out.vector,
         "summarized_text": [s.text for s in summarized_text],
         "common_words": common_words,
-        "num_sentences": num_sentences,
-        "ner": ner
+        "num_sentences": num_sentences
+        # "ner": ner
     }
     return result
 
 
-def parse_text_2_json(raw_text):
-    r = parse_text(raw_text)
+def parse_text_2_json(raw_text, doc_id=None):
+    r = parse_text(raw_text, doc_id)
     return json.dumps(r)
