@@ -69,6 +69,7 @@ if __name__ == "__main__":
                 lines = F.read().splitlines()
                 t = vanilla(lines, f)
                 print(t)
-            except:
+            except Exception as e:
+                print(e)
                 continue
         

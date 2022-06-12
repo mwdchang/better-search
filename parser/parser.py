@@ -43,10 +43,15 @@ def parse_text(raw_text, doc_id=None):
             else:
                 ner[ent.label_] = [ent.text]
 
+        noun_chunks = []
+        for chunk in sent.noun_chunks:
+            noun_chunks.append(chunk.text)
+
         sents.append({
             "text": sent.text,
             "vector": sent.vector.tolist(),
-            "ner": ner
+            "ner": ner,
+            "noun_chunks": noun_chunks
         })
 
     # Summarize raw text
