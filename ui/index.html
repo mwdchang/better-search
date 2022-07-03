@@ -1,14 +1,25 @@
 <!DOCTYPE HTML>
 <html>
 <head>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300&display=swap" rel="stylesheet">
 <style> 
 html, body {
-  font-family: Tahoma;
-  font-size: 10px;
+  font-size: 16px;
+  font-family: 'Source Sans Pro', sans-serif;
 }
+
+.container {
+  margin: 20px 30px;
+  line-height: 150%;
+}
+
 </style>
 </head>
 <body>
+  <label>Search text: </label><input id="search" type="text">
+  <hr>
 </body>
 <script type="module">
 import { betterSearch3 } from './search.js';
@@ -19,21 +30,77 @@ const corpusText = await resp.text();
 
 corpusText.split(/\n/).forEach(text => {
   if (!text || text === '') return;
-  corpus.push(JSON.parse(text));
+
+  const doc = JSON.parse(text);
+
+  // Preprocess, promote sentence level to document level to make highlighting easier
+  let temp = {};
+  doc.sents.forEach(s => {
+    s.noun_chunks.forEach(d => {
+      if (d.split(' ').length > 1) {
+        temp[d] = 1;
+      }
+    });
+  });
+
+  doc.highlights = Object.keys(temp).sort((a, b) => b.length - a.length);
+
+  corpus.push(doc);
 });
 
-const searchStr = 'murder';
+// const searchStr = 'murder';
+const searchStr = ' supply ';
+let regexp = new RegExp(searchStr.trim(), "g");
 
-const entries = betterSearch3(searchStr, corpus)
-// entries.map((entry, idx) => {
-  // console.log(idx, entry.ner);
-  // console.log(idx, entry.summarized_text.join(' '))
-  // console.log(idx, entry.common_words);
-// });
 
-document.write(searchStr);
-document.write('<br>');
-// document.write(entries.map(d => `${d.id} ${d.text} <br>## ${d.common_words.map(x => x[0]).join(', ')} ##<br><br>`));
+const [directMatches, indirectMatches, matchedTokens] = betterSearch3(searchStr, corpus)
+
+// Start main
+for (const entry of directMatches) {
+  const elem = document.createElement('div');
+  let formattedText = entry.text.replaceAll(regexp, `<span style="background:#EE2;color:#369">${searchStr}</span>`);
+
+  // console.log('highlight', entry.highlights);
+
+  entry.highlights.forEach(h => {
+    const highlightRegexp = new RegExp(h, 'g');
+    formattedText = formattedText.replaceAll(highlightRegexp, `<span style="background:#EEE">${h}</span>`);
+  });
+
+  elem.innerHTML = `<b>${entry.id}</b><br> ` + formattedText;
+  elem.classList = ['container'];
+  document.body.appendChild(elem);
+}
+
+document.body.appendChild(document.createElement('hr'));
+// End main
+
+
+
+// Start indirect matches section
+for (const entry of indirectMatches) {
+  const elem = document.createElement('div');
+  let formattedText = entry.text;
+
+  matchedTokens.forEach(d => {
+    const highlightRegexp = new RegExp(d, 'g');
+    formattedText = formattedText.replaceAll(highlightRegexp, `<span style="background:#88E">${d}</span>`);
+  });
+
+  elem.innerHTML = `<b>${entry.id}</b><br> ` + formattedText;
+  elem.classList = ['container'];
+  document.body.appendChild(elem);
+}
+// End indirect
+
+
+
+const searchInput = document.getElementById('search');
+
+searchInput.addEventListener('input', () => {
+  const str = searchInput.value.trim();
+  console.log(str);
+});
 
 </script>
 </html>

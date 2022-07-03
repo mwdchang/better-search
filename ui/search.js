@@ -75,6 +75,7 @@ export const betterSearch2 = (searchStr, corpus) => {
 export const betterSearch3 = (searchStr, corpus) => {
 
   const ners = [];
+  const nounChunks = [];
 
   // 1. Direct matching
   const directMatches = corpus.filter(doc => {
@@ -87,6 +88,12 @@ export const betterSearch3 = (searchStr, corpus) => {
         delete sNER.CARDINAL;
         delete sNER.ORDINAL;
         delete sNER.DATE;
+        // console.log('--', sent.noun_chunks.filter(d => d.split(' ').length > 1));
+        const testChunks = sent.noun_chunks.filter(d => d.split(' ').length > 1);
+        testChunks.forEach(d => {
+          nounChunks.push(d);
+        });
+
         if (Object.keys(sNER).length > 0) {
           ners.push(sent.ner);
         }
@@ -94,13 +101,13 @@ export const betterSearch3 = (searchStr, corpus) => {
     });
     return found;
   });
+  console.log('# direct matches', directMatches.length);
 
 
+  // Find sentence level NER
   const totalNERMap = new Map();
   for (const ner of ners) {
     for (const [_k, v] of Object.entries(ner)) {
-      // console.log(`${k}: ${v}`);
-      
       for (const token of v) {
         if (totalNERMap.has(token)) {
           totalNERMap.set(token, totalNERMap.get(token) + 1);
@@ -109,17 +116,25 @@ export const betterSearch3 = (searchStr, corpus) => {
         }
       }
     }
-    // console.log(ner);
   }
 
-  const topNER = [...totalNERMap.entries()].sort((a, b) => b[1] - a[1]).splice(0, 8);
-  // console.log(topNER);
+  const topNER = [...totalNERMap.entries()].sort((a, b) => b[1] - a[1]).splice(0, 20);
+  const topNERList = topNER.map(d => d[0]);
+  console.log('top ner:', topNERList);
 
+  // Find common words for document
+  const commonMap = new Map();
+  for (const doc of directMatches) {
+    doc.common_words.forEach(d => commonMap.set(d[0], 1));
+  }
+  const commonWords = [...commonMap.keys()];
+  console.log('top common words', commonWords);
+  
 
   // Secondary search
   const indirectMatches = [];
-  const topList = topNER.map(d => d[0]);
-  console.log(topList, directMatches.length);
+
+  const temp = {};
 
   for (const doc of corpus) {
     if (directMatches.filter(d => d.id === doc.id).length >= 1) {
@@ -127,18 +142,35 @@ export const betterSearch3 = (searchStr, corpus) => {
     }
 
     let cnt = 0;
-    for (const token of topList) {
-      if (doc.text.includes(token)) cnt++;
+    for (const token of topNERList) {
+      if (doc.text.includes(token)) {
+        cnt++;
+        temp[token] = 1;
+      }
     }
+
+    for (const chunk of nounChunks) {
+      if (doc.text.includes(chunk)) {
+        cnt++;
+        temp[chunk] = 1;
+      }
+    }
+
+    // for (const token of commonWords){
+    //   if (doc.text.includes(token)) cnt++;
+    // }
+
+    // Include docs above threshold coverage
     if (cnt > 4) {
       indirectMatches.push(doc);
     }
   }
 
-  console.log(`${directMatches.length}  ${indirectMatches.length}`);
+  // console.log(`${directMatches.length}  ${indirectMatches.length}`);
+  console.log('# secondary matches', indirectMatches.length);
   console.log(indirectMatches.map(d => d.text));
 
-  return directMatches;
+  return [directMatches, indirectMatches, Object.keys(temp)];
 }
 
 export const distance = (v1, v2) => {
@@ -148,3 +180,5 @@ export const distance = (v1, v2) => {
   }
   return Math.sqrt(total);
 }
+
+// https://www.kaggle.com/code/thebrownviking20/topic-modelling-with-spacy-and-scikit-learn/notebook
