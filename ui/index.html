@@ -15,6 +15,10 @@ html, body {
   line-height: 150%;
 }
 
+strong {
+  text-decoration: underline;
+}
+
 </style>
 </head>
 <body>
@@ -44,63 +48,74 @@ corpusText.split(/\n/).forEach(text => {
   });
 
   doc.highlights = Object.keys(temp).sort((a, b) => b.length - a.length);
-
   corpus.push(doc);
 });
 
-// const searchStr = 'murder';
-const searchStr = ' supply ';
-let regexp = new RegExp(searchStr.trim(), "g");
+const clear = () => {
+  const elements = document.getElementsByClassName('container');
+  while(elements.length > 0){
+    elements[0].parentNode.removeChild(elements[0]);
+  }
+};
 
 
-const [directMatches, indirectMatches, matchedTokens] = betterSearch3(searchStr, corpus)
+const runSearch = async (searchStr) => {
+  if (searchStr.length < 3) return;
+  clear();
 
-// Start main
-for (const entry of directMatches) {
-  const elem = document.createElement('div');
-  let formattedText = entry.text.replaceAll(regexp, `<span style="background:#EE2;color:#369">${searchStr}</span>`);
+  let regexp = new RegExp(searchStr.trim(), "g");
+  const [directMatches, indirectMatches, matchedTokens] = betterSearch3(searchStr, corpus)
 
-  // console.log('highlight', entry.highlights);
+  // Start main
+  for (const entry of directMatches) {
+    const elem = document.createElement('div');
+    let formattedText = entry.text.replaceAll(regexp, `<span style="background:#EE2;color:#369">${searchStr}</span>`);
 
-  entry.highlights.forEach(h => {
-    const highlightRegexp = new RegExp(h, 'g');
-    formattedText = formattedText.replaceAll(highlightRegexp, `<span style="background:#EEE">${h}</span>`);
-  });
+    // console.log('highlight', entry.highlights);
 
-  elem.innerHTML = `<b>${entry.id}</b><br> ` + formattedText;
-  elem.classList = ['container'];
-  document.body.appendChild(elem);
-}
+    entry.highlights.forEach(h => {
+      const highlightRegexp = new RegExp(h, 'g');
+      formattedText = formattedText.replaceAll(highlightRegexp, `<span style="background:#EEE">${h}</span>`);
+    });
 
-document.body.appendChild(document.createElement('hr'));
-// End main
+    elem.innerHTML = `<strong>${entry.id}</strong><br> ` + formattedText;
+    elem.classList = ['container'];
+    document.body.appendChild(elem);
+  }
 
+  const hr = document.createElement('hr');
+  hr.classList = ['container'];
+  document.body.appendChild(hr);
+  // End main
 
+  // Start indirect matches section
+  for (const entry of indirectMatches) {
+    const elem = document.createElement('div');
+    let formattedText = entry.text;
 
-// Start indirect matches section
-for (const entry of indirectMatches) {
-  const elem = document.createElement('div');
-  let formattedText = entry.text;
+    matchedTokens.forEach(d => {
+      const highlightRegexp = new RegExp(d, 'g');
+      formattedText = formattedText.replaceAll(highlightRegexp, `<span style="background:#CCF">${d}</span>`);
+    });
 
-  matchedTokens.forEach(d => {
-    const highlightRegexp = new RegExp(d, 'g');
-    formattedText = formattedText.replaceAll(highlightRegexp, `<span style="background:#88E">${d}</span>`);
-  });
-
-  elem.innerHTML = `<b>${entry.id}</b><br> ` + formattedText;
-  elem.classList = ['container'];
-  document.body.appendChild(elem);
-}
-// End indirect
-
+    elem.innerHTML = `<b>${entry.id}</b><br> ` + formattedText;
+    elem.classList = ['container'];
+    document.body.appendChild(elem);
+  }
+  // End indirect
+};
 
 
 const searchInput = document.getElementById('search');
 
 searchInput.addEventListener('input', () => {
   const str = searchInput.value.trim();
-  console.log(str);
+  runSearch(str);
 });
+
+
+// const searchStr = ' supply ';
+// runSearch(searchStr);
 
 </script>
 </html>
