@@ -6,13 +6,20 @@
 <link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300&display=swap" rel="stylesheet">
 <style> 
 html, body {
-  font-size: 16px;
+  font-size: 15px;
   font-family: 'Source Sans Pro', sans-serif;
 }
 
 .container {
   margin: 20px 30px;
   line-height: 150%;
+}
+
+.l2 {
+  margin: 20px 30px;
+  margin-left: 50px;
+  padding-left: 10px;
+  border-left: 5px solid #187;
 }
 
 strong {
@@ -26,7 +33,7 @@ strong {
   <hr>
 </body>
 <script type="module">
-import { betterSearch3 } from './search.js';
+import { betterSearch3, betterSearch4 } from './search.js';
 
 const corpus = []
 const resp = await fetch('data.jsonl');
@@ -64,7 +71,9 @@ const runSearch = async (searchStr) => {
   clear();
 
   let regexp = new RegExp(searchStr.trim(), "g");
-  const [directMatches, indirectMatches, matchedTokens] = betterSearch3(searchStr, corpus)
+  // const [directMatches, indirectMatches, matchedTokens] = betterSearch3(searchStr, corpus)
+  const [directMatches, level2Map] = betterSearch4(searchStr, corpus)
+
 
   // Start main
   for (const entry of directMatches) {
@@ -73,36 +82,37 @@ const runSearch = async (searchStr) => {
 
     // console.log('highlight', entry.highlights);
 
+    /*
     entry.highlights.forEach(h => {
       const highlightRegexp = new RegExp(h, 'g');
       formattedText = formattedText.replaceAll(highlightRegexp, `<span style="background:#EEE">${h}</span>`);
     });
+    */
 
     elem.innerHTML = `<strong>${entry.id}</strong><br> ` + formattedText;
     elem.classList = ['container'];
     document.body.appendChild(elem);
+
+    if (level2Map[entry.id]) {
+      const list = level2Map[entry.id];
+      for (const l2Entry of list) {
+        const elem = document.createElement('div');
+        formattedText = l2Entry.doc.text;
+
+        l2Entry.matchedTokens.forEach(token => {
+          const highlightRegexp = new RegExp(token, 'g');
+          formattedText = formattedText.replaceAll(highlightRegexp, `<span style="background:#BEE">${token}</span>`);
+        });
+
+
+        elem.innerHTML = `<strong>${l2Entry.doc.id}</strong><br> ` + formattedText;
+        elem.classList = ['container l2'];
+        document.body.appendChild(elem);
+      }
+    }
   }
 
-  const hr = document.createElement('hr');
-  hr.classList = ['container'];
-  document.body.appendChild(hr);
   // End main
-
-  // Start indirect matches section
-  for (const entry of indirectMatches) {
-    const elem = document.createElement('div');
-    let formattedText = entry.text;
-
-    matchedTokens.forEach(d => {
-      const highlightRegexp = new RegExp(d, 'g');
-      formattedText = formattedText.replaceAll(highlightRegexp, `<span style="background:#CCF">${d}</span>`);
-    });
-
-    elem.innerHTML = `<b>${entry.id}</b><br> ` + formattedText;
-    elem.classList = ['container'];
-    document.body.appendChild(elem);
-  }
-  // End indirect
 };
 
 
@@ -114,8 +124,8 @@ searchInput.addEventListener('input', () => {
 });
 
 
-// const searchStr = ' supply ';
-// runSearch(searchStr);
+const searchStr = ' supply ';
+runSearch(searchStr);
 
 </script>
 </html>
