@@ -307,4 +307,69 @@ export const betterSearch4 = (searchStr, corpus) => {
   return [directMatches, level2Map];
 };
 
+
+export const betterSearch5 = (searchStr, corpus) => {
+  // 1. Direct matching
+  const directMatches = corpus.filter(doc => {
+    let found = false;
+    doc.sents.forEach(sent => {
+      if (sent.text.toLowerCase().includes(searchStr)) {
+        found = true;
+      }
+    });
+    return found;
+  });
+
+  console.log('');
+  console.log('======== Better search 4 ========');
+  console.log('# total docs', corpus.length);
+  console.log('# direct matches', directMatches.length);
+
+
+  // 2. For each direct match, find similar documents
+  const dupeMap = new Map();
+  for (const doc of directMatches) {
+    dupeMap.set(doc.id, 1);
+  }
+  const availableDocs = corpus.filter(d => ! dupeMap.has(d.id));
+
+  console.log('# remaining for secondary search', availableDocs.length);
+
+  const level2Map = {};
+
+  for (const doc of directMatches) {
+    for (const candidateDoc of availableDocs) {
+
+      const similarSents = [];
+
+      // Check pairwise document sentences
+      for (const docSent of doc.sents) {
+        for (const candidateDocSent of candidateDoc.sents) {
+          const dist = distance(docSent.sbert_vector, candidateDocSent.sbert_vector);
+          if (dist < 0.8) {
+            console.log('source: ', docSent.text);
+            console.log('target: ', candidateDocSent.text);
+            console.log('');
+            similarSents.push({
+              source: docSent.text,
+              target: candidateDocSent.text
+            });
+          }
+        }
+      }
+
+      if (similarSents.length > 0) {
+        if (!level2Map[doc.id]) {
+          level2Map[doc.id] = []
+        }
+        level2Map[doc.id].push({
+          doc: candidateDoc,
+          similarSents: similarSents
+        });
+      }
+    }
+  }
+  return [directMatches, level2Map];
+};
+
 // https://www.kaggle.com/code/thebrownviking20/topic-modelling-with-spacy-and-scikit-learn/notebook

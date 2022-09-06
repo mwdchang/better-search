@@ -4,6 +4,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.6.1/d3.min.js" integrity="sha512-MefNfAGJ/pEy89xLOFs3V6pYPs6AmUhXJrRlydI/9wZuGrqxmrdQ80zKHUcyadAcpH67teDZcBeS6oMJLPtTqw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style> 
 html, body {
   font-size: 15px;
@@ -31,9 +32,10 @@ strong {
 <body>
   <label>Search text: </label><input id="search" type="text">
   <hr>
+  <main></main>
 </body>
 <script type="module">
-import { betterSearch3, betterSearch4 } from './search.js';
+import { betterSearch3, betterSearch4, betterSearch5 } from './search.js';
 
 const corpus = []
 const resp = await fetch('data.jsonl');
@@ -72,45 +74,112 @@ const runSearch = async (searchStr) => {
 
   let regexp = new RegExp(searchStr.trim(), "g");
   // const [directMatches, indirectMatches, matchedTokens] = betterSearch3(searchStr, corpus)
-  const [directMatches, level2Map] = betterSearch4(searchStr, corpus)
+  const [directMatches, level2Map] = betterSearch5(searchStr, corpus)
 
+
+  console.log(directMatches.length, directMatches);
+  const group = d3.select("main")
+    .selectAll('div')
+    .data(directMatches, d => d.id)
+    .enter()
+    .append('div');
+
+
+  group.append('div')
+    .style('font-weight', 800)
+    .text(d => d.id);
+
+  group.append('div')
+    .classed('anchorText', true)
+    .text(d => d.text);
+
+
+  // Process second layer
+  group.each((d, idx, g) => {
+    const selection = d3.select(g[idx]);
+    console.log(d, selection);
+
+    const related = level2Map[d.id];
+    if (!related) return;
+
+    const l2 = selection.append('div').classed('l2', true);
+
+    for (const candidate of related) {
+      const group2 = l2.append('g');
+
+      let formattedText = candidate.doc.text;
+
+      candidate.similarSents.forEach(similarSent => {
+        const highlightRegexp = new RegExp(similarSent.target.replaceAll('(', '\\(').replaceAll(')', '\\)'), 'g');
+        formattedText = formattedText.replaceAll(highlightRegexp, `<span style="background:#BEE">${similarSent.target}</span>`);
+      });
+
+      // parent
+      group2.on('mouseenter', () => {
+        let anchorFormattedText = d.text;
+        candidate.similarSents.forEach(similarSent => {
+          const highlightRegexp = new RegExp(similarSent.source.replaceAll('(', '\\(').replaceAll(')', '\\)'), 'g');
+          anchorFormattedText = anchorFormattedText.replaceAll(highlightRegexp, `<span style="text-decoration:underline">${similarSent.source}</span>`);
+        });
+        selection.select('.anchorText').node().innerHTML = anchorFormattedText;
+      });
+      group2.on('mouseleave', () => {
+        selection.select('.anchorText').node().innerHTML = d.text;
+      });
+      
+
+
+      group2.append('div').text(candidate.doc.id);
+      group2.append('div').node().innerHTML = formattedText;
+      group2.append('br');
+    }
+
+    // Event listener
+    // selection.on('mouseenter', () => {
+    // });
+  });
+
+
+  group.append('br');
 
   // Start main
-  for (const entry of directMatches) {
-    const elem = document.createElement('div');
-    let formattedText = entry.text.replaceAll(regexp, `<span style="background:#EE2;color:#369">${searchStr}</span>`);
-
-    // console.log('highlight', entry.highlights);
-
-    /*
-    entry.highlights.forEach(h => {
-      const highlightRegexp = new RegExp(h, 'g');
-      formattedText = formattedText.replaceAll(highlightRegexp, `<span style="background:#EEE">${h}</span>`);
-    });
-    */
-
-    elem.innerHTML = `<strong>${entry.id}</strong><br> ` + formattedText;
-    elem.classList = ['container'];
-    document.body.appendChild(elem);
-
-    if (level2Map[entry.id]) {
-      const list = level2Map[entry.id];
-      for (const l2Entry of list) {
-        const elem = document.createElement('div');
-        formattedText = l2Entry.doc.text;
-
-        l2Entry.matchedTokens.forEach(token => {
-          const highlightRegexp = new RegExp(token, 'g');
-          formattedText = formattedText.replaceAll(highlightRegexp, `<span style="background:#BEE">${token}</span>`);
-        });
-
-
-        elem.innerHTML = `<strong>${l2Entry.doc.id}</strong><br> ` + formattedText;
-        elem.classList = ['container l2'];
-        document.body.appendChild(elem);
-      }
-    }
-  }
+//  for (const entry of directMatches) {
+//    const topElem = document.createElement('div');
+//    let formattedText = entry.text.replaceAll(regexp, `<span style="background:#EE2;color:#369">${searchStr}</span>`);
+//
+//    topElem.innerHTML = `<strong>${entry.id}</strong><br> ` + formattedText;
+//    topElem.classList = ['container'];
+//    document.body.appendChild(topElem);
+//
+//    if (level2Map[entry.id]) {
+//      const list = level2Map[entry.id];
+//      for (const l2Entry of list) {
+//        const elem = document.createElement('div');
+//        formattedText = l2Entry.doc.text;
+//
+//        l2Entry.similarSents.forEach(similarSent => {
+//          const highlightRegexp = new RegExp(similarSent.target, 'g');
+//          formattedText = formattedText.replaceAll(highlightRegexp, `<span style="background:#BEE">${similarSent.target}</span>`);
+//        });
+//
+//        elem.innerHTML = `<strong>${l2Entry.doc.id}</strong><br> ` + formattedText;
+//        elem.classList = ['container l2'];
+//
+//        /*
+//        elem.addEventListener('mouseenter', () => {
+//          let formattedText = entry.text.replaceAll(regexp, `<span style="background:#EE2;color:#369">${searchStr}</span>`);
+//          const highlightRegexp = new RegExp(similarSent.source, 'g');
+//          formattedText = formattedText.replaceAll(highlightRegexp, `<span style="background:#BEE">${similarSent.source}</span>`);
+//          topElem.innerHTML = `<strong>${entry.id}</strong><br> ` + formattedText;
+//          d3.select(topElem).text('abcdefg');
+//        });
+//        */
+//
+//
+//        document.body.appendChild(elem);
+//      }
+//    }
+//  }
 
   // End main
 };
