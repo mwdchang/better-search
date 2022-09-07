@@ -339,7 +339,6 @@ export const betterSearch5 = (searchStr, corpus) => {
 
   for (const doc of directMatches) {
     for (const candidateDoc of availableDocs) {
-
       const similarSents = [];
 
       // Check pairwise document sentences
@@ -347,9 +346,9 @@ export const betterSearch5 = (searchStr, corpus) => {
         for (const candidateDocSent of candidateDoc.sents) {
           const dist = distance(docSent.sbert_vector, candidateDocSent.sbert_vector);
           if (dist < 0.8) {
-            console.log('source: ', docSent.text);
-            console.log('target: ', candidateDocSent.text);
-            console.log('');
+            // console.log('source: ', docSent.text);
+            // console.log('target: ', candidateDocSent.text);
+            // console.log('');
             similarSents.push({
               source: docSent.text,
               target: candidateDocSent.text
@@ -358,7 +357,7 @@ export const betterSearch5 = (searchStr, corpus) => {
         }
       }
 
-      if (similarSents.length > 0) {
+      if (similarSents.length > 1) {
         if (!level2Map[doc.id]) {
           level2Map[doc.id] = []
         }

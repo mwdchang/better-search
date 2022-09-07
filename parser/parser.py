@@ -6,6 +6,8 @@ nlp = spacy.load("en_core_web_sm")
 from collections import Counter
 from heapq import nlargest
 
+from sentence_transformers import SentenceTransformer, util
+model = SentenceTransformer('all-MiniLM-L6-v2')
 
 # Custom entity
 # https://towardsdatascience.com/custom-named-entity-recognition-using-spacy-7140ebbb3718#:~:text=SpaCy%20NER%20already%20supports%20the,%2C%20agencies%2C%20institutions%2C%20etc.
@@ -50,6 +52,7 @@ def parse_text(raw_text, doc_id=None):
         sents.append({
             "text": sent.text,
             "vector": sent.vector.tolist(),
+            "sbert_vector": model.encode([sent.text])[0].tolist(),
             "ner": ner,
             "noun_chunks": noun_chunks
         })
