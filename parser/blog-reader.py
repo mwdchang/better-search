@@ -29,7 +29,8 @@ if __name__ == "__main__":
         with open(file_path) as F:
             try: 
                 content = clean_str(F.read())
-                print(parse_text_2_json(content))
+                data = parse_text_2_json(content, f)
+                print(data)
             except Exception as e:
                 print(e)
                 continue

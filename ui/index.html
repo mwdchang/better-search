@@ -1,147 +1,75 @@
-<!DOCTYPE HTML>
-<html>
+<html lang="en">
 <head>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.6.1/d3.min.js" integrity="sha512-MefNfAGJ/pEy89xLOFs3V6pYPs6AmUhXJrRlydI/9wZuGrqxmrdQ80zKHUcyadAcpH67teDZcBeS6oMJLPtTqw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<style> 
-html, body {
-  font-size: 15px;
-  font-family: 'Source Sans Pro', sans-serif;
+<script src="./d3.v7.min.js"></script>
+<script src="./arc.js"></script>
+<style>
+body {
+  font-family: Tahoma;
 }
 
-.container {
-  margin: 20px 30px;
-  line-height: 150%;
+main {
+  display: flex;
+  flex-direction: row;
 }
 
-.l2 {
-  margin: 20px 30px;
-  margin-left: 50px;
-  padding-left: 10px;
-  border-left: 5px solid #187;
+.arc-diagram {
+  width: 250px;
+  height: 500px;
+}
+
+.content {
+  width: 450px;
+  height: 500px;
+  font-size: 90%;
+  font-family: Tahoma;
+  color: #333;
+  text-align: justify;
+  overflow: scroll;
+  border: 1px solid #D8D8D8;
+  border-radius: 15px;
+  padding: 10px;
+  background-image: linear-gradient(#F8F8F8, #FFFFFF);
 }
 
 </style>
+
 </head>
 <body>
-  <label>Search text: </label><input id="search" type="text">
-  <hr>
-  <main></main>
+  <div>Search <input type="text"></div>
+  <main>
+    <div class="arc-diagram"></div>
+    <div class="content"></div>
+  </main>
 </body>
 <script type="module">
-import { betterSearch3, betterSearch4, betterSearch5 } from './search.js';
+import { doSearch } from './search.js';
 
-const corpus = []
-const resp = await fetch('data.jsonl');
-const corpusText = await resp.text();
+const response = await fetch('data.jsonl');
+const rawData = await (response.json());
+console.log(rawData);
 
-corpusText.split(/\n/).forEach(text => {
-  if (!text || text === '') return;
+const arcSVG = d3.select('.arc-diagram').append('svg');
+arcSVG.style('width', '100%').style('height', '100%');
 
-  const doc = JSON.parse(text);
+const data = [
+  {
+    source: { y: 100 },
+    target: { y: 200 }
+  },
+  {
+    source: { y: 100 },
+    target: { y: 300 }
+  }
+];
 
-  // Preprocess, promote sentence level to document level to make highlighting easier
-  let temp = {};
-  doc.sents.forEach(s => {
-    s.noun_chunks.forEach(d => {
-      if (d.split(' ').length > 1) {
-        temp[d] = 1;
-      }
-    });
-  });
+renderArcDiagram(arcSVG, rawData);
 
-  doc.highlights = Object.keys(temp).sort((a, b) => b.length - a.length);
-  corpus.push(doc);
+doSearch('amazon', rawData, {
+  sentenceNeighbourhood: 1
 });
 
-const clear = () => {
-  d3.select('main').selectAll('*').remove();
-};
-
-
-const runSearch = async (searchStr) => {
-  if (searchStr.length < 3) return;
-  clear();
-
-  let regexp = new RegExp(searchStr.trim(), "g");
-  const [directMatches, level2Map] = betterSearch5(searchStr, corpus)
-
-  console.log(directMatches.length, directMatches);
-  const group = d3.select("main")
-    .selectAll('div')
-    .data(directMatches, d => d.id)
-    .enter()
-    .append('div');
-
-  group.append('div')
-    .style('font-weight', 800)
-    .text(d => d.id);
-
-  group.append('div')
-    .classed('content-text', true);
-
-  // Process second layer
-  group.each((d, idx, g) => {
-    const selection = d3.select(g[idx]);
-    console.log(d.id, d.text);
-    const related = level2Map[d.id] || [];
-
-    const l2 = selection.append('div').classed('l2', true);
-
-    const searchRegex = new RegExp(searchStr.replaceAll('(', '\\(').replaceAll(')', '\\)'), 'g');
-    const originalTextWithSearch = d.text.replaceAll(searchRegex, `<span style="background: #FB0">${searchStr}</span>`);
-
-
-    for (const candidate of related) {
-      const group2 = l2.append('g');
-
-      // parent
-      group2.on('mouseenter', () => {
-
-        let formattedText = candidate.doc.text;
-        candidate.similarSents.forEach(similarSent => {
-          const highlightRegexp = new RegExp(similarSent.target.replaceAll('(', '\\(').replaceAll(')', '\\)'), 'g');
-          formattedText = formattedText.replaceAll(highlightRegexp, `<span style="background:#BEE">${similarSent.target}</span>`);
-        });
-        group2.select('.content-text').node().innerHTML = formattedText;
-
-        let anchorFormattedText = d.text;
-        candidate.similarSents.forEach(similarSent => {
-          const highlightRegexp = new RegExp(similarSent.source.replaceAll('(', '\\(').replaceAll(')', '\\)'), 'g');
-          anchorFormattedText = anchorFormattedText.replaceAll(highlightRegexp, `<span style="background:#BEE">${similarSent.source}</span>`);
-        });
-        anchorFormattedText = anchorFormattedText.replaceAll(searchRegex, `<span style="background: #FB0">${searchStr}</span>`);
-
-        selection.select('.content-text').node().innerHTML = anchorFormattedText;
-      });
-      group2.on('mouseleave', () => {
-        selection.select('.content-text').node().innerHTML = originalTextWithSearch;
-        group2.select('.content-text').node().innerHTML = candidate.doc.text
-      });
-      
-      group2.append('div').text(candidate.doc.id);
-      group2.append('div').classed('content-text', true).node().innerHTML = candidate.doc.text;
-      group2.append('br');
-    }
-
-    selection.select('.content-text').node().innerHTML = originalTextWithSearch;
-  });
-
-  group.append('br');
-};
-
-
-const searchInput = document.getElementById('search');
-
-searchInput.addEventListener('input', () => {
-  const str = searchInput.value.trim();
-  runSearch(str);
-});
-
-searchInput.value = ' supply ';
-searchInput.dispatchEvent(new Event('input'));
+d3.select('.content')
+  .text(rawData[0].sentences.map(d => d.text).join(' '));
 
 </script>
 </html>

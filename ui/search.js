@@ -181,6 +181,19 @@ export const distance = (v1, v2) => {
   return Math.sqrt(total);
 };
 
+export const cosineSim = (A,B) => {
+    let dotproduct=0;
+    let mA=0;
+    let mB=0;
+    for(let i = 0; i < A.length; i++) { 
+        dotproduct += (A[i] * B[i]);
+        mA += (A[i]*A[i]);
+        mB += (B[i]*B[i]);
+    }
+    mA = Math.sqrt(mA);
+    mB = Math.sqrt(mB);
+    return (dotproduct)/((mA)*(mB)); 
+}
 
 /**
  * Given
@@ -338,37 +351,81 @@ export const betterSearch5 = (searchStr, corpus) => {
   const level2Map = {};
 
   for (const doc of directMatches) {
-    for (const candidateDoc of availableDocs) {
-      const similarSents = [];
+    for (const docSent of doc.sents) {
 
       // Check pairwise document sentences
-      for (const docSent of doc.sents) {
+      for (const candidateDoc of availableDocs) {
+        const similarSents = [];
+        // console.log(`> ${doc.id} ${docSent.text}`)
         for (const candidateDocSent of candidateDoc.sents) {
-          const dist = distance(docSent.sbert_vector, candidateDocSent.sbert_vector);
-          if (dist < 0.8) {
-            // console.log('source: ', docSent.text);
-            // console.log('target: ', candidateDocSent.text);
-            // console.log('');
+          const score = cosineSim(docSent.sbert_vector, candidateDocSent.sbert_vector);
+
+          if (score > 0.35) {
+            // console.log(`\t${candidateDoc.id} ${score.toFixed(3)} ${candidateDocSent.text}`);
             similarSents.push({
               source: docSent.text,
               target: candidateDocSent.text
             });
           }
         }
-      }
-
-      if (similarSents.length > 1) {
-        if (!level2Map[doc.id]) {
-          level2Map[doc.id] = []
+      
+        if (similarSents.length >= 1) {
+          if (!level2Map[doc.id]) {
+            level2Map[doc.id] = []
+          }
+          level2Map[doc.id].push({
+            doc: candidateDoc,
+            similarSents: similarSents
+          });
         }
-        level2Map[doc.id].push({
-          doc: candidateDoc,
-          similarSents: similarSents
-        });
       }
     }
   }
   return [directMatches, level2Map];
 };
+
+
+/**
+ *
+ * @param {string} searchText
+ * @param {array} corpus
+ * @param {object} options
+ * @param {number} options.sentenceNeighbourhood
+ **/
+export const doSearch = (searchText, corpus, options) => {
+  const mainMatches = [];
+
+  // 1. First round of matches, directly match against text
+  corpus.forEach(doc => {
+    const nextCandidates = new Set();
+    const matches = new Set();
+
+    for (let i = 0; i < doc.sentences.length; i++) {
+      if (doc.sentences[i].text.toLowerCase().includes(searchText)) {
+        matches.add(i);
+        const start = Math.max(0, i - options.sentenceNeighbourhood);
+        const end = Math.min(i + options.sentenceNeighbourhood + 1, doc.sentences.length);
+
+        for (let j = start; j < end; j++) {
+          nextCandidates.add(j);
+        }
+      }
+    }
+    console.log('nextCandidates', Array.from(nextCandidates));
+
+    mainMatches.push({
+      id: doc.id,
+      matched: Array.from(matches),
+      candidates: Array.from(nextCandidates)
+    });
+  });
+
+
+  // 2. Search over candidates to pull out threads
+
+  console.log('!!!', mainMatches);
+};
+
+
 
 // https://www.kaggle.com/code/thebrownviking20/topic-modelling-with-spacy-and-scikit-learn/notebook
