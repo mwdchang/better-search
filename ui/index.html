@@ -1,7 +1,6 @@
 <html lang="en">
 <head>
 <script src="./d3.v7.min.js"></script>
-<script src="./arc.js"></script>
 <style>
 body {
   font-family: Tahoma;
@@ -14,28 +13,35 @@ main {
 
 .arc-diagram {
   width: 250px;
-  height: 500px;
+  height: 600px;
 }
 
-.content {
+.match-item {
   width: 450px;
-  height: 500px;
-  font-size: 90%;
+  height: 100px;
+  font-size: 80%;
   font-family: Tahoma;
   color: #333;
   text-align: justify;
   overflow: scroll;
   border: 1px solid #D8D8D8;
   border-radius: 15px;
+  margin: 2px;
   padding: 10px;
   background-image: linear-gradient(#F8F8F8, #FFFFFF);
+  cursor: pointer;
+}
+
+
+.match-item:hover {
+  background-image: linear-gradient(#EEF8F8, #DDFFFF);
 }
 
 </style>
 
 </head>
 <body>
-  <div>Search <input type="text"></div>
+  <div>Search <input id="search-input" type="text"></div>
   <main>
     <div class="arc-diagram"></div>
     <div class="content"></div>
@@ -43,33 +49,59 @@ main {
 </body>
 <script type="module">
 import { doSearch } from './search.js';
+import { renderArcDiagram, highlight, resetHighlight, links, resetLinks } from './arc.js';
 
 const response = await fetch('data.jsonl');
 const rawData = await (response.json());
-console.log(rawData);
 
 const arcSVG = d3.select('.arc-diagram').append('svg');
 arcSVG.style('width', '100%').style('height', '100%');
 
-const data = [
-  {
-    source: { y: 100 },
-    target: { y: 200 }
-  },
-  {
-    source: { y: 100 },
-    target: { y: 300 }
-  }
-];
-
 renderArcDiagram(arcSVG, rawData);
 
-doSearch('amazon', rawData, {
-  sentenceNeighbourhood: 1
-});
+let timerId = null;
+const debounceSearch = (str) => {
+  if (timerId) {
+    window.clearTimeout(timerId);
+  }
+  timerId = window.setTimeout(() => {
+    searchWrapper(str);
+  }, 500);
+}
 
-d3.select('.content')
-  .text(rawData[0].sentences.map(d => d.text).join(' '));
+const searchWrapper = (str) => {
+  // 1. search
+  const searchResult = doSearch(str, rawData, {
+    sentenceNeighbourhood: 1
+  });
+
+  const matches = searchResult.filter(d => d.matched.length > 0);
+  console.log('Search result', matches.length, matches);
+
+  resetHighlight(arcSVG);
+  resetLinks(arcSVG);
+  d3.select('.content').selectAll('*').remove();
+
+  if (matches.length <= 0) return;
+
+  for (const match of matches) {
+    highlight(arcSVG, match.id);
+    links(arcSVG, match.id, match.relatedDocs);
+
+    d3.select('.content')
+      .append('div')
+      .datum(match)
+      .classed('match-item', true)
+      .text(match.sentences.map(d => d.text).join(' '));
+  }
+};
+
+const searchInput = document.getElementById('search-input');
+searchInput.addEventListener('input', () => {
+  let str = searchInput.value;
+  str = str.trim();
+  debounceSearch(str);
+});
 
 </script>
 </html>

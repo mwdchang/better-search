@@ -411,19 +411,42 @@ export const doSearch = (searchText, corpus, options) => {
         }
       }
     }
-    console.log('nextCandidates', Array.from(nextCandidates));
+    // console.log('nextCandidates', Array.from(nextCandidates));
 
     mainMatches.push({
       id: doc.id,
+      sentences: doc.sentences,
       matched: Array.from(matches),
-      candidates: Array.from(nextCandidates)
+      candidates: Array.from(nextCandidates),
+      relatedDocs: []
     });
   });
 
-
   // 2. Search over candidates to pull out threads
+  // TODO: option to exclude from original match results + self
+  // TODO: option to do score threshold
+  for (const match of mainMatches) {
+    for (const doc of corpus) {
+      if (match.id === doc.id) continue;
 
-  console.log('!!!', mainMatches);
+      let counter = 0;
+      for (const sId of match.candidates) {
+        const sent = match.sentences[sId];
+        for (const targetSent of doc.sentences) {
+          const score = cosineSim(sent.sbert_vector, targetSent.sbert_vector);
+          if (score > 0.35) {
+            counter ++;
+          }
+        }
+      }
+      console.log('counter', counter);
+      if (counter > 0) {
+        match.relatedDocs.push(doc.id);
+      }
+    }
+  }
+  
+  return mainMatches;
 };
 
 
