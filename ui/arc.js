@@ -19,9 +19,8 @@ export const links = (svg, source, targets) => {
   const marginLeft = 30;
   const src = svg.selectAll('circle').filter(d => d.id === source).data()[0];
 
-  for (const targetId of targets) {
+  for (const targetId of targets.map(d => d.id)) {
     const tgt = svg.selectAll('circle').filter(d => d.id === targetId).data()[0];
-    console.log(src, tgt);
 
     svg.append('path')
       .attr('d', arc(marginLeft, src._y, tgt._y))

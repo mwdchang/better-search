@@ -391,6 +391,7 @@ export const betterSearch5 = (searchStr, corpus) => {
  * @param {array} corpus
  * @param {object} options
  * @param {number} options.sentenceNeighbourhood
+ * @param {number} options.scoreThreshold
  **/
 export const doSearch = (searchText, corpus, options) => {
   const mainMatches = [];
@@ -430,18 +431,24 @@ export const doSearch = (searchText, corpus, options) => {
       if (match.id === doc.id) continue;
 
       let counter = 0;
+      const similiarSentenceBuffer = [];
       for (const sId of match.candidates) {
         const sent = match.sentences[sId];
+        let index = 0;
         for (const targetSent of doc.sentences) {
           const score = cosineSim(sent.sbert_vector, targetSent.sbert_vector);
-          if (score > 0.35) {
+          if (score > options.scoreThreshold) {
             counter ++;
+            similiarSentenceBuffer.push(index);
           }
+          index ++;
         }
       }
-      console.log('counter', counter);
       if (counter > 0) {
-        match.relatedDocs.push(doc.id);
+        match.relatedDocs.push({
+          id: doc.id,
+          matchedSentences: similiarSentenceBuffer
+        });
       }
     }
   }

@@ -18,7 +18,7 @@ main {
 
 .match-item {
   width: 450px;
-  height: 100px;
+  height: 150px;
   font-size: 80%;
   font-family: Tahoma;
   color: #333;
@@ -37,6 +37,14 @@ main {
   background-image: linear-gradient(#EEF8F8, #DDFFFF);
 }
 
+.related-content {
+  width: 450px;
+  font-size: 80%;
+  padding: 10px;
+  border: 1px solid #D8D8D8;
+  border-radius: 15px;
+}
+
 </style>
 
 </head>
@@ -45,6 +53,7 @@ main {
   <main>
     <div class="arc-diagram"></div>
     <div class="content"></div>
+    <div class="related-content"></div>
   </main>
 </body>
 <script type="module">
@@ -72,7 +81,8 @@ const debounceSearch = (str) => {
 const searchWrapper = (str) => {
   // 1. search
   const searchResult = doSearch(str, rawData, {
-    sentenceNeighbourhood: 1
+    sentenceNeighbourhood: 1,
+    scoreThreshold: 0.4
   });
 
   const matches = searchResult.filter(d => d.matched.length > 0);
@@ -94,12 +104,26 @@ const searchWrapper = (str) => {
       .classed('match-item', true)
       .text(match.sentences.map(d => d.text).join(' '));
   }
+
+  
+  const relatedContent = d3.select('.related-content');
+  const drillDown = matches[0];
+  drillDown.relatedDocs.forEach(related => {
+    const refDoc = rawData.find(d => d.id === related.id);
+
+    const testText = related.matchedSentences.map(idx => refDoc.sentences[idx].text);
+
+    relatedContent.append('div').text(related.id);
+    relatedContent.append('div').text(testText.join(' '));
+    relatedContent.append('br');
+    // console.log(testText);
+  });
 };
 
 const searchInput = document.getElementById('search-input');
 searchInput.addEventListener('input', () => {
   let str = searchInput.value;
-  str = str.trim();
+  str = str.trim().toLowerCase();
   debounceSearch(str);
 });
 
