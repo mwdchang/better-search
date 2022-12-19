@@ -385,6 +385,7 @@ export const betterSearch5 = (searchStr, corpus) => {
 };
 
 
+
 /**
  *
  * @param {string} searchText
@@ -431,15 +432,21 @@ export const doSearch = (searchText, corpus, options) => {
       if (match.id === doc.id) continue;
 
       let counter = 0;
+      const dupe = new Set();
+
       const similiarSentenceBuffer = [];
       for (const sId of match.candidates) {
         const sent = match.sentences[sId];
         let index = 0;
         for (const targetSent of doc.sentences) {
           const score = cosineSim(sent.sbert_vector, targetSent.sbert_vector);
-          if (score > options.scoreThreshold) {
+          if (score > options.scoreThreshold && !dupe.has(index)) {
             counter ++;
-            similiarSentenceBuffer.push(index);
+            dupe.add(index);
+            similiarSentenceBuffer.push({
+              source: sId,
+              target: index
+            });
           }
           index ++;
         }

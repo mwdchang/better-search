@@ -16,9 +16,9 @@ main {
   height: 600px;
 }
 
-.match-item {
+.content {
   width: 450px;
-  height: 150px;
+  height: 400px;
   font-size: 80%;
   font-family: Tahoma;
   color: #333;
@@ -28,21 +28,23 @@ main {
   border-radius: 15px;
   margin: 2px;
   padding: 10px;
-  background-image: linear-gradient(#F8F8F8, #FFFFFF);
+  /* background-image: linear-gradient(#F8F8F8, #FFFFFF); */
   cursor: pointer;
 }
 
 
 .match-item:hover {
-  background-image: linear-gradient(#EEF8F8, #DDFFFF);
+  /* background-image: linear-gradient(#EEF8F8, #DDFFFF); */
 }
 
 .related-content {
   width: 450px;
+  height: 400px;
   font-size: 80%;
   padding: 10px;
   border: 1px solid #D8D8D8;
   border-radius: 15px;
+  overflow: scroll;
 }
 
 </style>
@@ -82,7 +84,7 @@ const searchWrapper = (str) => {
   // 1. search
   const searchResult = doSearch(str, rawData, {
     sentenceNeighbourhood: 1,
-    scoreThreshold: 0.4
+    scoreThreshold: 0.6
   });
 
   const matches = searchResult.filter(d => d.matched.length > 0);
@@ -91,32 +93,51 @@ const searchWrapper = (str) => {
   resetHighlight(arcSVG);
   resetLinks(arcSVG);
   d3.select('.content').selectAll('*').remove();
+  d3.select('.related-content').selectAll('*').remove();
 
   if (matches.length <= 0) return;
 
-  for (const match of matches) {
-    highlight(arcSVG, match.id);
-    links(arcSVG, match.id, match.relatedDocs);
+  highlight(arcSVG, matches[0].id);
+  links(arcSVG, matches[0].id, matches[0].relatedDocs);
 
+  matches[0].sentences.forEach((sent, idx) => {
     d3.select('.content')
-      .append('div')
-      .datum(match)
-      .classed('match-item', true)
-      .text(match.sentences.map(d => d.text).join(' '));
-  }
+      .append('span')
+      .datum({id: idx})
+      .text(sent.text);
+  });
 
   
   const relatedContent = d3.select('.related-content');
   const drillDown = matches[0];
+
   drillDown.relatedDocs.forEach(related => {
     const refDoc = rawData.find(d => d.id === related.id);
 
-    const testText = related.matchedSentences.map(idx => refDoc.sentences[idx].text);
+    const matchedSentences = related.matchedSentences; // .map(idx => refDoc.sentences[idx].text);
 
     relatedContent.append('div').text(related.id);
-    relatedContent.append('div').text(testText.join(' '));
+    const ol = relatedContent.append('ol');
+
+    matchedSentences.forEach(m => {
+      const txt = refDoc.sentences[m.target].text;
+      const sourceSentenceId = m.source;
+
+      const li = ol.append('li').text(txt);
+      li.on('mouseover', () => {
+        d3.select('.content').selectAll('span')
+          .filter(d => d.id === sourceSentenceId)
+          .style('background', '#8CF');
+        li.style('background', '#8CF');
+      });
+      li.on('mouseout', () => {
+        d3.select('.content').selectAll('span').style('background', null);
+        li.style('background', null);
+      });
+    });
+
+
     relatedContent.append('br');
-    // console.log(testText);
   });
 };
 
@@ -126,6 +147,10 @@ searchInput.addEventListener('input', () => {
   str = str.trim().toLowerCase();
   debounceSearch(str);
 });
+
+const initialSearchStr = 'apple';
+searchInput.value = initialSearchStr;
+debounceSearch(initialSearchStr);
 
 </script>
 </html>
